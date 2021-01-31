@@ -17,7 +17,7 @@ resources:
 steps:
 - template: create_and_store_certificates.yml@ACMECertificateAutomation
   parameters:
-    azureSubscription: 'SC_ARM_VSE1-INFRA-ACME'
+    azureSubscription: '<YOUR-SERVICE-CONNECTION>'
     certs:
-    - blog.partly-cloudy.de
+    - www.example.org
     

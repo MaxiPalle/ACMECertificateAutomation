@@ -10,7 +10,7 @@ We use Azure and Azure DevOps together to automate the certificate issuance and 
 
 Therefore, we require the following resources:
 1. **Azure Storage Account** to store ACME server information, certificate order details, certificates, and private keys on Blob storage.
-2. **Azure DNS** to publish our DNS challenges for the corresponding FQDNs. You’ll need to configure your domain registrar to use the DNS zone you’ve created in Azure. As we managing the DNS zone 'partly-cloudy.de' with Azure, we may need a additonal sub zone for the corresponding stage and application in the form of `<stage>.<application>.partly-cloudy.de`.
+2. **Azure DNS** to publish our DNS challenges for the corresponding FQDNs. You’ll need to configure your domain registrar to use the DNS zone you’ve created in Azure. As we managing the DNS zone 'example.org' with Azure, we may need a additonal sub zone for the corresponding stage and application in the form of `<stage>.<application>.example.org`.
 3. **Azure KeyVault** to store and provide the issued certificates for the requesting endpoint.
 4. An **Azure DevOps project and repo** to store a code repository, build pipeline, and service connection.
 
@@ -25,7 +25,7 @@ The Blob Storage was created with PowerShell code, but could also be prepared wi
 #### Blob Storage
 ```powershell
 $RGName = "rg-ACME"
-$SAName = "saacmecerts"
+$SAName = "storacctacmecerts"
 $Location = "westeurope"
 New-AzStorageAccount -Name $SAName -ResourceGroupName $RGName -Location $Location -Kind StorageV2 -SkuName Standard_LRS -EnableHttpsTrafficOnly $true
 ```
@@ -42,7 +42,7 @@ New-AzKeyVault -Name "kv-acmecerts" -ResourceGroupName $RGName -Location $Locati
 
 ## Create the service principal
 ```powershell
-$application = New-AzADApplication -DisplayName "ACME Certificate Automation" -IdentifierUris "http://partly-cloudy.de/acme"
+$application = New-AzADApplication -DisplayName "ACME Certificate Automation" -IdentifierUris "http://example.org/acme"
 
 $servicePrincipal = New-AzADServicePrincipal -ApplicationId $application.ApplicationId
 
@@ -51,14 +51,14 @@ $servicePrincipalCredential = New-AzADServicePrincipalCredential -ServicePrincip
 
 ## Create DNS (sub-)zone
 ```powershell
-New-AzDnsZone -Name "partly-cloudy.de" -ResourceGroupName $RGName
+New-AzDnsZone -Name "example.org" -ResourceGroupName $RGName
 ```
 
 ## Grant service principal access to the resources
 
 #### Acces to DNS zone
 ```powershell
-New-AzRoleAssignment -ObjectId $servicePrincipal.Id -ResourceGroupName $RGName -ResourceName "partly-cloudy.de" -ResourceType "Microsoft.Network/dnszones" -RoleDefinitionName "DNS Zone Contributor"
+New-AzRoleAssignment -ObjectId $servicePrincipal.Id -ResourceGroupName $RGName -ResourceName "example.org" -ResourceType "Microsoft.Network/dnszones" -RoleDefinitionName "DNS Zone Contributor"
 ```
 
 #### Access to Azure KV  
@@ -91,7 +91,7 @@ The build pipeline uses a service connection to control Azure resources. The bui
 
 The actual build pipeline is referenced as a template file.
 
-Here is an example for a certificate for the FQDN 'blog.partly-cloudy.de':
+Here is an example for a certificate for the FQDN 'www.example.org':
 
 ```yaml
 name: 0.0.$(Build.BuildId)
