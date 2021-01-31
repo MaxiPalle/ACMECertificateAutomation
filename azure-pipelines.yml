@@ -1,0 +1,23 @@
+name: 0.0.$(Build.BuildId)
+
+# Linux based agent; all except the first step will also work on Windows
+pool:
+  name: Hosted Ubuntu 1604
+
+# The scheduled trigger will be set in the Azure DevOps portal
+trigger: none
+
+# Reference for the repository of the template file 
+resources:
+  repositories:
+    - repository: ACMECertificateAutomation
+      type: git
+      name: ACME/ACMECertificateAutomation
+
+steps:
+- template: create_and_store_certificates.yml@ACMECertificateAutomation
+  parameters:
+    azureSubscription: 'SC_ARM_VSE1-INFRA-ACME'
+    certs:
+    - blog.partly-cloudy.de
+    

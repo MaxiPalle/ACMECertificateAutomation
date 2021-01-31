@@ -1,0 +1,50 @@
+parameters:
+  certs : []
+  azureSubscription: ''
+
+steps:
+  # Set the number of the build
+  - task: PowerShell@2
+    displayName: Update Build Number
+    inputs:
+      targetType: 'inline'
+      script: '$id = "$(Build.BuildId)"; $date = Get-Date -Format "yyyy.MMdd"; Write-Host "##vso[build.updatebuildnumber]$date.$id"'
+  # Install AzCopy v10
+  - task: Bash@3
+    displayName: "Install AzCopy v10"
+    inputs:
+      targetType: 'inline'
+      script: 'wget https://aka.ms/downloadazcopy-v10-linux && tar xvzf ./downloadazcopy-v10-linux && rm ./downloadazcopy-v10-linux && cp ./azcopy_linux_amd64_10.*/azcopy ./ && rm -rf ./azcopy_linux_amd64_10.* && ./azcopy --version'
+  # Install the Az PowerShell modules our script will need
+  - task: PowerShell@2
+    displayName: Install PowerShell Modules (Az.Accounts, Az.KeyVault, Az.Resources, Posh-ACME)
+    inputs:
+      targetType: 'inline'
+      script: 'Install-Module Az.Accounts, Az.KeyVault, Az.Resources, Posh-ACME -Force'
+      errorActionPreference: 'stop'
+      failOnStderr: true
+      pwsh: true
+  - ${{ each cert in parameters.certs }}:
+    # Order or renew a certificate via ACME
+    - task: AzurePowerShell@4
+      displayName: Order or Renew Certificate ${{ cert }}
+      inputs:
+        azureSubscription: ${{ parameters.azureSubscription }}
+        scriptType: 'FilePath'
+        scriptPath: 'New-AcmeCertificate.ps1 '
+        scriptArguments: '-AcmeDirectory "$(AcmeDirectory)" -AcmeContact "$(AcmeContact)" -CertificateNames "${{ cert }}" -StorageContainerSASToken "$(StorageContainerSASToken)"'
+        errorActionPreference: 'stop'
+        failOnStandardError: true
+        azurePowerShellVersion: 'LatestVersion'
+    # Import the certificate into Azure Key Vault
+    - task: AzurePowerShell@4
+      displayName: Import Certificate ${{ cert }} into Key Vault
+      inputs:
+        azureSubscription: ${{ parameters.azureSubscription }}
+        scriptType: 'FilePath'
+        scriptPath: 'Import-AcmeCertificateToKeyVault.ps1 '
+        scriptArguments: '-CertificateNames "${{ cert }}" -KeyVaultResourceId "$(KeyVaultResourceId)"'
+        errorActionPreference: 'stop'
+        failOnStandardError: true
+        azurePowerShellVersion: 'LatestVersion'
+      condition: "and(succeeded(), ne(variables['KeyVaultResourceId'], ''))"
